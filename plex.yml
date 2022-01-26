@@ -1,0 +1,71 @@
+---
+  - name: install plex
+    hosts: plex
+    become: yes
+    become_user: root
+    tasks:
+
+      - name: Enable EPEL Repository
+        yum:
+          name: epel-release
+          state: latest
+      
+      - name: Upgrade RHEL Family OS packages
+        yum:
+          name: '*'
+          state: latest
+
+      - name: Import Plex GPG key
+        rpm_key:
+          key: https://downloads.plex.tv/plex-keys/PlexSign.key
+          state: present
+
+      - name: add plex repo 
+        yum_repository:
+          name: Plex
+          description: Plex repo
+          baseurl: https://downloads.plex.tv/repo/rpm/$basearch/
+          gpgcheck: no
+
+      - name: install plex & transmission
+        yum:
+          name: "{{ item }}"
+          state: installed
+        loop:
+          - plexmediaserver
+          - transmission-daemon
+
+      - name: Enable plex & transmission
+        service:
+          name: "{{ item }}"
+          state: restarted
+          enabled: yes
+        loop:
+          - plexmediaserver
+          - transmission-daemon
+
+
+      - name: firewall - allow services
+        firewalld:
+          service: "{{ item }}"
+          permanent: yes
+          state: enabled
+        loop:
+          - plex
+          - transmission-client
+
+      - name: allow plex ports
+        firewalld:
+          port: "{{ item }}"
+          permanent: yes
+          immediate: yes
+          state: enabled
+        loop:
+          - 32400/tcp
+          - 32469/tcp
+          - 1900/udp
+          - 32410/udp
+          - 32412-32414/udp
+          - 9091/tcp
+
+      - name: enable Transmission web client
